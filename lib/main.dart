@@ -1,4 +1,6 @@
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
+import 'dart:async';
 
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:sliding_up_panel/sliding_up_panel.dart';
@@ -41,6 +43,50 @@ class _HomePageState extends State<HomePage> {
     bearing: 0,
     zoom: 15,
   );
+
+  final Completer<String> googleMapStyle = Completer();
+  final Completer<GoogleMapController> googleMapController = Completer();
+  final Set<Marker> markers = {};
+  final Set<Polyline> polylines = {};
+
+  @override
+  void initState() {
+    super.initState();
+    rootBundle
+        .loadString("assets/googlemaps.json")
+        .then((style) => googleMapStyle.complete(style));
+    setupMap();
+  }
+
+  void setupMap() async {
+    final googlemap = await googleMapController.future;
+    final style = await googleMapStyle.future;
+
+    googlemap.setMapStyle(style);
+
+    setState(() {
+      markers.add(Marker(
+        markerId: MarkerId(initialPosition.target.toString()),
+        position: initialPosition.target,
+        infoWindow: InfoWindow(title: 'Starting Point'),
+      ));
+
+      markers.add(Marker(
+        markerId: MarkerId(endPosition.target.toString()),
+        position: endPosition.target,
+        infoWindow: InfoWindow(title: 'Starting Point'),
+      ));
+
+      polylines.add(
+        Polyline(
+          polylineId: PolylineId(initialPosition.target.toString() +
+              endPosition.target.toString()),
+          points: [initialPosition.target, endPosition.target],
+          width: 4,
+        ),
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -106,7 +152,13 @@ class _HomePageState extends State<HomePage> {
         trailing: Text(price),
       );
 
-  Widget map() => Container(
-        color: Colors.grey.shade300,
+  Widget map() => GoogleMap(
+        initialCameraPosition: initialPosition,
+        zoomControlsEnabled: false,
+        markers: markers,
+        polylines: polylines,
+        onMapCreated: (GoogleMapController controller) {
+          this.googleMapController.complete(controller);
+        },
       );
 }
